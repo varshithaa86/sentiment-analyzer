@@ -1,154 +1,117 @@
-
-import pandas as pd
-from sklearn.model_selection import train_test_split
+# Import libraries
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.linear_model import LogisticRegression
+from sklearn.model_selection import train_test_split
 from sklearn.pipeline import Pipeline
-from sklearn.metrics import (
-    accuracy_score,
-    classification_report,
-    confusion_matrix
-)
+from sklearn.metrics import accuracy_score, classification_report
+import joblib
 
-# Balanced sample dataset
-data = {
-    "text": [
-        "This product is excellent",
-        "I love this product",
-        "Amazing quality and great service",
-        "Very happy with my purchase",
-        "The product is wonderful",
-        "I am satisfied with this item",
-        "Absolutely fantastic experience",
-        "This is a great product",
-        "I really like it",
-        "Excellent value for money",
-        "The quality is outstanding",
-        "Delivery was fast and smooth",
-        "I highly recommend this product",
-        "The service was very helpful",
-        "This exceeded my expectations",
-        "Beautiful design and perfect quality",
-        "Really pleased with the results",
-        "The experience was enjoyable",
-        "Works perfectly and looks great",
-        "I would buy this again",
-        "This product is terrible",
-        "I hate this product",
-        "Very poor quality",
-        "I am unhappy with my purchase",
-        "The product is awful",
-        "Very disappointed",
-        "Worst experience ever",
-        "This is a bad product",
-        "I really dislike it",
-        "Waste of money",
-        "The quality is horrible",
-        "Delivery was very slow",
-        "I do not recommend this product",
-        "The service was disappointing",
-        "This failed my expectations",
-        "The design is ugly and cheap",
-        "I regret buying this item",
-        "The experience was frustrating",
-        "It stopped working quickly",
-        "I would not buy this again",
-        "The product is reliable",
-        "The app is easy to use",
-        "Customer support was excellent",
-        "The results were impressive",
-        "I am delighted with the purchase",
-        "Everything works as expected",
-        "The packaging was beautiful",
-        "This is worth the price",
-        "The product feels premium",
-        "I am very pleased",
-        "The product broke immediately",
-        "Customer support was unhelpful",
-        "The app is confusing",
-        "The results were disappointing",
-        "I regret this purchase",
-        "Nothing works properly",
-        "The packaging was damaged",
-        "This is not worth the price",
-        "The product feels cheap",
-        "I am very dissatisfied"
-    ],
-    "sentiment": [
-        "Positive", "Positive", "Positive", "Positive", "Positive",
-        "Positive", "Positive", "Positive", "Positive", "Positive",
-        "Positive", "Positive", "Positive", "Positive", "Positive",
-        "Positive", "Positive", "Positive", "Positive", "Positive",
-        "Negative", "Negative", "Negative", "Negative", "Negative",
-        "Negative", "Negative", "Negative", "Negative", "Negative",
-        "Negative", "Negative", "Negative", "Negative", "Negative",
-        "Negative", "Negative", "Negative", "Negative", "Negative",
-        "Positive", "Positive", "Positive", "Positive", "Positive",
-        "Positive", "Positive", "Positive", "Positive", "Positive",
-        "Negative", "Negative", "Negative", "Negative", "Negative",
-        "Negative", "Negative", "Negative", "Negative", "Negative"
-    ]
-}
+# Dataset: review and sentiment
+data = [
+    # Positive reviews
+    ("I love this product", "Positive"),
+    ("I like this product", "Positive"),
+    ("This product is amazing", "Positive"),
+    ("Very good quality", "Positive"),
+    ("I am happy with this product", "Positive"),
+    ("Excellent product", "Positive"),
+    ("Wonderful experience", "Positive"),
+    ("Best purchase ever", "Positive"),
+    ("The product is fantastic", "Positive"),
+    ("I am very satisfied", "Positive"),
+    ("This is a great product", "Positive"),
+    ("The quality is excellent", "Positive"),
+    ("I enjoyed using it", "Positive"),
+    ("Absolutely wonderful", "Positive"),
+    ("Very useful product", "Positive"),
+    ("I recommend this product", "Positive"),
+    ("This product is awesome", "Positive"),
+    ("The service was excellent", "Positive"),
+    ("I am pleased with my purchase", "Positive"),
+    ("Everything is perfect", "Positive"),
+    ("Good experience", "Positive"),
+    ("Worth buying", "Positive"),
+    ("I am very happy", "Positive"),
+    ("The product works perfectly", "Positive"),
+    ("I really like it", "Positive"),
+    ("This is a wonderful product", "Positive"),
+    ("I am satisfied with this product", "Positive"),
+    ("The product is very good", "Positive"),
+    ("I would recommend it", "Positive"),
+    ("Great service and quality", "Positive"),
 
-df = pd.DataFrame(data)
+    # Negative reviews
+    ("I hate this product", "Negative"),
+    ("I do not like this product", "Negative"),
+    ("I don't like this product", "Negative"),
+    ("I dont like this product", "Negative"),
+    ("This product is terrible", "Negative"),
+    ("Very bad quality", "Negative"),
+    ("I am unhappy", "Negative"),
+    ("Worst product ever", "Negative"),
+    ("I dislike this product", "Negative"),
+    ("Very disappointing", "Negative"),
+    ("Bad experience", "Negative"),
+    ("I regret buying this", "Negative"),
+    ("The product is awful", "Negative"),
+    ("I am very dissatisfied", "Negative"),
+    ("This is not good", "Negative"),
+    ("The quality is poor", "Negative"),
+    ("Not worth the money", "Negative"),
+    ("I am not satisfied", "Negative"),
+    ("The product is damaged", "Negative"),
+    ("I would not recommend it", "Negative"),
+    ("Very poor experience", "Negative"),
+    ("This product is useless", "Negative"),
+    ("I am disappointed", "Negative"),
+    ("Terrible service", "Negative"),
+    ("Waste of money", "Negative"),
+    ("I am not happy with this product", "Negative"),
+    ("I do not recommend this product", "Negative"),
+    ("The product does not work", "Negative"),
+    ("I never liked this product", "Negative"),
+    ("This is a horrible product", "Negative")
+]
 
-# Split into training and testing sets
-X_train, X_test, y_train, y_test = train_test_split(
-    df["text"],
-    df["sentiment"],
-    test_size=0.25,
-    random_state=42,
-    stratify=df["sentiment"]
-)
+# Separate reviews and labels
+reviews = [item[0] for item in data]
+sentiments = [item[1] for item in data]
 
-# Build the machine learning pipeline
+# Create the machine learning pipeline
 model = Pipeline([
-    ("tfidf", TfidfVectorizer(ngram_range=(1, 2))),
+    ("tfidf", TfidfVectorizer(ngram_range=(1, 3))),
     ("classifier", LogisticRegression(max_iter=1000))
 ])
 
-# Train the model
+# Split data for evaluation
+X_train, X_test, y_train, y_test = train_test_split(
+    reviews,
+    sentiments,
+    test_size=0.20,
+    random_state=42,
+    stratify=sentiments
+)
+
+# Train a temporary model for evaluation
 model.fit(X_train, y_train)
 
-# Predict on unseen test examples
-y_pred = model.predict(X_test)
+# Make predictions
+predictions = model.predict(X_test)
 
-# Calculate evaluation metrics
-accuracy = accuracy_score(y_test, y_pred)
-report = classification_report(
-    y_test, y_pred, zero_division=0
-)
-matrix = confusion_matrix(
-    y_test, y_pred, labels=["Negative", "Positive"]
-)
+# Display accuracy
+accuracy = accuracy_score(y_test, predictions)
 
-# Display results
-print("=" * 45)
-print("       SENTIMENT ANALYZER")
-print("=" * 45)
-print("Total reviews:", len(df))
-print("Training samples:", len(X_train))
-print("Testing samples:", len(X_test))
-print(f"Accuracy: {accuracy * 100:.2f}%")
+print("Model Training and Evaluation")
+print("Accuracy:", round(accuracy * 100, 2), "%")
 
 print("\nClassification Report:")
-print(report)
+print(classification_report(y_test, predictions))
 
-print("Confusion Matrix")
-print("Labels: Negative, Positive")
-print(matrix)
+# Train final model using all available examples
+model.fit(reviews, sentiments)
 
-print("\nSample Predictions:")
-test_reviews = [
-    "This product is amazing and wonderful",
-    "This product is horrible and terrible",
-    "I am very happy with the quality",
-    "I regret buying this",
-    "The quality is excellent",
-    "The quality is awful"
-]
+# Save the final trained model
+joblib.dump(model, "sentiment_model.pkl")
 
-for review in test_reviews:
-    prediction = model.predict([review])[0]
-    print(f"Review: {review}")
-    print(f"Sentiment: {prediction}\n")
+print("\nFinal model trained on all examples.")
+print("Model saved successfully!")

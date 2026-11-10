@@ -1,228 +1,74 @@
-
 import streamlit as st
-from train_model import model
+import joblib
+import re
 
-# Page configuration
-st.set_page_config(
-    page_title="Sentiment Analyzer",
-    page_icon="💜",
-    layout="wide",
-    initial_sidebar_state="collapsed"
-)
+# Load the trained ML model
+model = joblib.load("sentiment_model.pkl")
 
-# Custom CSS
-st.markdown("""
-<style>
-.stApp {
-    background: linear-gradient(135deg, #f5f0ff 0%, #fff4f8 50%, #eef6ff 100%);
-}
-.block-container {
-    max-width: 1050px;
-    padding-top: 2rem;
-    padding-bottom: 3rem;
-}
-.hero {
-    background: linear-gradient(120deg, #6d28d9, #a855f7, #ec4899);
-    padding: 38px 30px;
-    border-radius: 24px;
-    color: white;
-    text-align: center;
-    box-shadow: 0 12px 30px rgba(109, 40, 217, 0.20);
-    margin-bottom: 25px;
-}
-.hero h1 {
-    color: white;
-    font-size: 42px;
-    margin-bottom: 8px;
-}
-.hero p {
-    color: #f5eaff;
-    font-size: 17px;
-}
-.section-title {
-    color: #54219a;
-    font-size: 25px;
-    font-weight: 700;
-    margin-top: 22px;
-}
-.info-card {
-    background: rgba(255,255,255,0.90);
-    border: 1px solid #eadcff;
-    padding: 22px;
-    border-radius: 18px;
-    min-height: 145px;
-    box-shadow: 0 5px 18px rgba(80,40,120,0.06);
-}
-.info-card h3 {
-    color: #6d28d9;
-    margin-top: 0;
-}
-.info-card p {
-    color: #554b66;
-}
-.stTextArea textarea {
-    background: white !important;
-    border: 1px solid #d8b4fe !important;
-    border-radius: 14px !important;
-    color: #292039 !important;
-}
-.stButton > button {
-    border-radius: 12px;
-    border: 1px solid #d8b4fe;
-    font-weight: 600;
-    transition: 0.2s;
-}
-.stButton > button:hover {
-    border-color: #9333ea;
-    color: #7e22ce;
-}
-.footer {
-    text-align: center;
-    color: #78658c;
-    padding-top: 28px;
-    font-size: 13px;
-}
-</style>
-""", unsafe_allow_html=True)
+# Positive words and phrases
+positive_words = [
+    "love", "like", "amazing", "good", "excellent",
+    "great", "wonderful", "happy", "satisfied",
+    "fantastic", "recommend", "perfect", "enjoy",
+    "awesome", "best"
+]
 
-# Hero section
-st.markdown("""
-<div class="hero">
-    <h1>💜 Sentiment Analyzer</h1>
-    <p>Discover the emotion behind every review using Machine Learning.</p>
-    <p>✨ Smart Text Analysis &nbsp; • &nbsp; 🤖 AI-powered Classification</p>
-</div>
-""", unsafe_allow_html=True)
+# Negative words and phrases
+negative_words = [
+    "hate", "terrible", "bad", "awful", "poor",
+    "worst", "disappoint", "useless", "regret",
+    "waste", "horrible"
+]
 
-# Information cards
-st.markdown('<div class="section-title">🌟 Explore the analyzer</div>',
-            unsafe_allow_html=True)
+def analyze_sentiment(review):
 
-col1, col2, col3 = st.columns(3)
+    text = review.lower().strip()
 
-with col1:
-    st.markdown("""
-    <div class="info-card">
-        <h3>😊 Positive</h3>
-        <p>Identify reviews that express satisfaction, happiness or appreciation.</p>
-    </div>
-    """, unsafe_allow_html=True)
+    # Check negative phrases first
+    negative_phrases = [
+        "don't like", "dont like", "do not like",
+        "does not like", "not good", "not happy",
+        "not satisfied", "not worth",
+        "don't recommend", "do not recommend"
+    ]
 
-with col2:
-    st.markdown("""
-    <div class="info-card">
-        <h3>😞 Negative</h3>
-        <p>Identify reviews that express dissatisfaction or disappointment.</p>
-    </div>
-    """, unsafe_allow_html=True)
+    for phrase in negative_phrases:
+        if phrase in text:
+            return "Negative"
 
-with col3:
-    st.markdown("""
-    <div class="info-card">
-        <h3>🧠 ML Model</h3>
-        <p>Uses TF-IDF text features and Logistic Regression classification.</p>
-    </div>
-    """, unsafe_allow_html=True)
+    # Check negative words
+    for word in negative_words:
+        if re.search(r"\b" + re.escape(word) + r"\w*\b", text):
+            return "Negative"
 
-# Input section
-st.markdown('<div class="section-title">✍️ Analyze your review</div>',
-            unsafe_allow_html=True)
+    # Check positive words
+    for word in positive_words:
+        if re.search(r"\b" + re.escape(word) + r"\w*\b", text):
+            return "Positive"
 
-st.write("Enter a product review below or try one of the sample reviews.")
+    # Use ML model for other sentences
+    return model.predict([review])[0]
 
-if "review_text" not in st.session_state:
-    st.session_state.review_text = ""
 
-sample1, sample2 = st.columns(2)
+# Streamlit application
+st.title("Sentiment Analyzer")
 
-with sample1:
-    if st.button("😊 Try positive sample", use_container_width=True):
-        st.session_state.review_text = (
-            "This product is amazing and the quality is excellent"
-        )
+st.write("Enter a review to check whether it is Positive or Negative.")
 
-with sample2:
-    if st.button("😞 Try negative sample", use_container_width=True):
-        st.session_state.review_text = (
-            "This product is terrible and the quality is very poor"
-        )
+user_review = st.text_input("Enter your review:")
 
-review = st.text_area(
-    "Your review",
-    key="review_text",
-    height=130,
-    placeholder="Example: I love this product. It works perfectly!"
-)
+if st.button("Analyze"):
 
-if st.button("✨ Analyze Sentiment", type="primary",
-             use_container_width=True):
+    if user_review.strip():
 
-    if review.strip():
-        prediction = model.predict([review.strip()])[0]
+        result = analyze_sentiment(user_review)
 
-        st.markdown("---")
-        st.markdown('<div class="section-title">📊 Analysis Result</div>',
-                    unsafe_allow_html=True)
+        st.subheader("Result:")
 
-        if prediction == "Positive":
-            st.success("😊 Positive Sentiment")
-            st.markdown("""
-            <div style="background:#dcfce7; padding:20px;
-                        border-radius:16px; border:1px solid #86efac;">
-                <h3 style="color:#166534;">🌈 A positive opinion!</h3>
-                <p style="color:#166534;">
-                    The model classified this review as Positive.
-                </p>
-            </div>
-            """, unsafe_allow_html=True)
+        if result == "Positive":
+            st.success("Positive Sentiment 😊")
         else:
-            st.error("😞 Negative Sentiment")
-            st.markdown("""
-            <div style="background:#ffe4e6; padding:20px;
-                        border-radius:16px; border:1px solid #fda4af;">
-                <h3 style="color:#9f1239;">💭 A negative opinion</h3>
-                <p style="color:#9f1239;">
-                    The model classified this review as Negative.
-                </p>
-            </div>
-            """, unsafe_allow_html=True)
+            st.error("Negative Sentiment 😞")
 
-        st.caption(
-            "Note: Predictions depend on the training dataset. "
-            "This is an educational demonstration, not a perfect classifier."
-        )
     else:
-        st.warning("Please enter a review before analyzing.")
-
-# Project information
-st.markdown("---")
-st.markdown('<div class="section-title">⚙️ About this project</div>',
-            unsafe_allow_html=True)
-
-left, right = st.columns(2)
-
-with left:
-    st.markdown("""
-    **🛠️ Technologies used**
-    - Python
-    - Scikit-learn
-    - TF-IDF Vectorizer
-    - Logistic Regression
-    - Streamlit
-    """)
-
-with right:
-    st.markdown("""
-    **🎯 Project objective**
-    - Process text reviews
-    - Convert text into numerical features
-    - Predict positive or negative sentiment
-    - Demonstrate a machine learning application
-    """)
-
-st.markdown("""
-<div class="footer">
-    MACHINE LEARNING LAB • EXPERIMENT 11<br>
-    Sentiment Analyzer | Student Mini Project 💜
-</div>
-""", unsafe_allow_html=True)
+        st.warning("Please enter a review.")
